@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zambia Explorer — Tourism Marketplace & Heritage Platform</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <style>
   :root{
     --green-deep:#1B4332;
@@ -116,10 +118,141 @@
   .card h3{margin:0 0 6px;font-family:var(--serif);font-size:17px}
   .province-card{
     text-align:center;font-family:var(--serif);font-weight:600;font-size:16px;
-    padding:26px 14px;cursor:default;transition:transform .15s,box-shadow .15s;color:var(--green-deep);
+    padding:26px 14px;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;color:var(--green-deep);
+    border:1px solid var(--line);
   }
-  .province-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+  .province-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);border-color:var(--terracotta)}
+  .province-card:focus-visible{outline:2px solid var(--terracotta);outline-offset:2px}
   .province-card small{display:block;font-family:var(--sans);font-weight:400;color:var(--ink-soft);font-size:11.5px;margin-top:4px}
+
+  /* ── Province select bar & detail panel ── */
+  .province-select-bar{
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 18px;margin-bottom:18px;box-shadow:var(--shadow);
+  }
+  .province-select-bar label{font-size:13px;font-weight:600;color:var(--ink-soft);white-space:nowrap}
+  .province-select-bar select{
+    flex:1;min-width:200px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+    background:var(--cream);font-family:var(--sans);font-size:14px;color:var(--charcoal);
+  }
+  .province-detail{
+    margin-top:24px;background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow-lg);padding:28px;position:relative;
+  }
+  .province-detail-close{
+    position:absolute;top:18px;right:18px;background:var(--cream-dark);border:none;
+    width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer;color:var(--charcoal);
+  }
+  .province-detail-close:hover{background:var(--line)}
+  .province-detail-head h2{font-family:var(--serif);font-size:26px;margin:4px 0}
+  .province-detail-body{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:18px}
+  @media(max-width:760px){.province-detail-body{grid-template-columns:1fr}}
+  .pd-heritage h3, .pd-listings h3{font-family:var(--serif);font-size:16px;margin:0 0 10px;color:var(--green-deep)}
+  .pd-heritage p{font-size:14px;line-height:1.7;color:var(--ink-soft)}
+  .pd-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .pd-tags span{
+    background:var(--cream-dark);color:var(--green-deep);font-size:11.5px;font-weight:600;
+    padding:5px 12px;border-radius:20px;border:1px solid var(--line);
+  }
+  .pd-listings .grid{grid-template-columns:1fr;gap:14px}
+
+  .pd-map-wrap{margin-top:26px;border-top:1px solid var(--line);padding-top:22px}
+  .pd-map-wrap h3{font-family:var(--serif);font-size:16px;margin:0 0 12px;color:var(--green-deep)}
+  .pd-map{height:320px;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--cream-dark)}
+  .pd-map-note{font-size:12px;color:var(--ink-soft);margin-top:8px}
+
+  .national-map-wrap{
+    background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px;margin-bottom:22px;
+  }
+  .national-map-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+  .national-map-head h3{font-family:var(--serif);font-size:18px;color:var(--green-deep);margin:0}
+  .national-map{height:420px;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--cream-dark)}
+  .map-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-soft)}
+  .map-legend span{display:inline-flex;align-items:center;gap:5px}
+  .map-legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .leaflet-popup-content b{font-family:var(--serif);color:var(--green-deep)}
+  .leaflet-popup-content .pop-cat{display:block;font-size:11px;color:var(--ink-soft);margin:2px 0 6px}
+  .leaflet-popup-content button{
+    background:var(--terracotta);color:#fff;border:none;border-radius:7px;
+    padding:5px 10px;font-size:11.5px;font-weight:600;cursor:pointer;margin-top:4px;
+  }
+
+  /* ── Stories ── */
+  .story-card{display:flex;flex-direction:column;gap:8px}
+  .story-meta{font-size:11.5px;color:var(--ink-soft);display:flex;gap:8px;align-items:center}
+  .story-meta .author{font-weight:700;color:var(--green-deep)}
+  .story-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .story-actions button{
+    background:var(--cream-dark);border:1px solid var(--line);border-radius:8px;
+    padding:6px 11px;font-size:12px;font-weight:600;color:var(--terracotta-dark);
+    cursor:pointer;transition:background .15s;
+  }
+  .story-actions button:hover{background:var(--line)}
+  .story-actions button.liked{background:var(--terracotta);color:#fff;border-color:var(--terracotta)}
+  .story-actions button.saved{background:var(--gold);color:var(--charcoal);border-color:var(--gold)}
+  .story-comments{margin-top:8px;border-top:1px solid var(--line);padding-top:8px;display:none}
+  .story-comments.open{display:block}
+  .story-comments ul{list-style:none;margin:0 0 8px;padding:0;font-size:12.5px}
+  .story-comments li{padding:5px 0;border-bottom:1px solid var(--cream-dark);color:var(--ink-soft)}
+  .story-comments li b{color:var(--charcoal)}
+  .story-comments form{display:flex;gap:6px}
+  .story-comments input{
+    flex:1;padding:7px 10px;border-radius:8px;border:1px solid var(--line);font-size:12.5px;
+  }
+  .story-comments button[type=submit]{
+    background:var(--green-deep);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;
+  }
+  .story-new{margin-bottom:24px}
+
+  /* ── Events ── */
+  .event-card{cursor:pointer}
+  .event-date-badge{
+    display:inline-block;background:var(--terracotta);color:#fff;font-size:11px;font-weight:700;
+    padding:4px 10px;border-radius:6px;margin-bottom:8px;
+  }
+  .event-detail{
+    margin-top:24px;background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow-lg);padding:26px;position:relative;
+  }
+
+  /* ── Knowledge ── */
+  .know-card{cursor:pointer;display:flex;flex-direction:column;gap:6px}
+  .know-card .glyph{font-size:22px}
+  .know-detail{
+    margin-top:24px;background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow-lg);padding:26px;position:relative;
+  }
+  .know-detail ul{margin:10px 0 0;padding-left:20px;font-size:14px;color:var(--ink-soft);line-height:1.8}
+
+  /* ── Settings tabs ── */
+  .settings-tabs{display:flex;gap:10px;margin-bottom:22px;flex-wrap:wrap}
+  .settings-tab{
+    background:var(--white);border:1px solid var(--line);border-radius:10px;
+    padding:10px 18px;font-size:13.5px;font-weight:700;color:var(--ink-soft);cursor:pointer;
+  }
+  .settings-tab.active{background:var(--green-deep);color:#fff;border-color:var(--green-deep)}
+
+  /* ── Booking modal ── */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(34,31,27,.55);display:flex;
+    align-items:center;justify-content:center;z-index:999;padding:20px;
+  }
+  .modal-box{
+    background:var(--white);border-radius:var(--radius);padding:28px;max-width:440px;width:100%;
+    position:relative;box-shadow:var(--shadow-lg);max-height:90vh;overflow-y:auto;
+  }
+  .reservation-card{font-size:13px}
+  .reservation-card .res-row{display:flex;justify-content:space-between;color:var(--ink-soft);padding:3px 0}
+  .reservation-card .res-row b{color:var(--charcoal)}
+  .reservation-actions{display:flex;gap:8px;margin-top:10px}
+
+  .detail-close{
+    position:absolute;top:18px;right:18px;background:var(--cream-dark);border:none;
+    width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer;color:var(--charcoal);
+  }
+  .detail-close:hover{background:var(--line)}
 
   .metric{
     background:linear-gradient(135deg,var(--green-deep),var(--green-mid));
@@ -157,6 +290,40 @@
   input:focus,select:focus,textarea:focus{outline:2px solid var(--terracotta);outline-offset:1px;border-color:var(--terracotta)}
   label{font-size:12.5px;font-weight:700;color:var(--green-deep);text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:5px}
   .field{margin-bottom:14px}
+  .field label small{text-transform:none;font-weight:500;color:var(--ink-soft);letter-spacing:0}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .field-hint{font-size:11.5px;color:var(--ink-soft);margin:-6px 0 14px;line-height:1.5}
+
+  /* ── Address search (geocoding) ── */
+  .address-search-row{display:flex;gap:8px}
+  .address-search-row input{flex:1}
+  .address-search-row .btn{white-space:nowrap}
+  .address-search-row .btn:disabled{opacity:.6;cursor:wait}
+  .address-results{
+    margin-top:8px;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+    max-height:220px;overflow-y:auto;background:var(--white);box-shadow:var(--shadow);
+  }
+  .address-result-item{
+    padding:10px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--cream-dark);
+    color:var(--charcoal);transition:background .12s;
+  }
+  .address-result-item:last-child{border-bottom:none}
+  .address-result-item:hover{background:var(--cream-dark)}
+  .address-result-item small{display:block;color:var(--ink-soft);font-size:11px;margin-top:2px}
+  .address-results-empty, .address-results-error, .address-results-loading{
+    padding:12px;font-size:12.5px;color:var(--ink-soft);text-align:center;
+  }
+  .address-results-attribution{
+    padding:6px 12px;font-size:10px;color:var(--ink-soft);background:var(--cream);text-align:right;
+  }
+  .address-confirmed{
+    margin-top:8px;display:flex;align-items:center;gap:8px;font-size:12.5px;
+    background:#E9F3ED;color:var(--green-deep);border:1px solid #BFE0CD;border-radius:10px;padding:8px 12px;
+  }
+  .address-confirmed button{
+    margin-left:auto;background:none;border:none;color:var(--terracotta-dark);font-size:11.5px;
+    font-weight:700;cursor:pointer;text-decoration:underline;
+  }
   .form-card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:26px;box-shadow:var(--shadow);max-width:560px}
 
   /* ===== Subscription tiers ===== */
@@ -564,8 +731,8 @@
     <p class="sub">A live snapshot of activity across the platform.</p>
   </div>
   <div class="grid">
-    <div class="metric"><b id="mSaved">128</b><span>Saved Places</span></div>
-    <div class="metric"><b id="mStories">34</b><span>Stories Posted</span></div>
+    <div class="metric"><b id="mSaved">0</b><span>Saved Places</span></div>
+    <div class="metric"><b id="mStories">0</b><span>Stories Posted</span></div>
     <div class="metric"><b id="mListings">0</b><span>Business Listings</span></div>
     <div class="metric"><b id="mPending">0</b><span>Pending Review</span></div>
   </div>
@@ -578,8 +745,51 @@
     <h2>All 10 Provinces</h2>
     <p class="sub">From the falls of Mosi-oa-Tunya to the wetlands of Bangweulu — every province, one network.</p>
   </div>
+
+  <div class="national-map-wrap">
+    <div class="national-map-head">
+      <h3>Zambia — Live Businesses Map</h3>
+      <div class="map-legend" id="mapLegend"></div>
+    </div>
+    <div id="nationalMap" class="national-map"></div>
+    <p class="pd-map-note">Every pin is a live, approved listing with a saved location — lodges, tour operators, transport, restaurants and more. Tap a pin to see details or request a booking.</p>
+  </div>
+
+  <div class="province-select-bar">
+    <label for="heritageProvinceSelect">Jump straight to a province</label>
+    <select id="heritageProvinceSelect">
+      <option value="">Choose a province…</option>
+    </select>
+  </div>
+
   <div class="grid" id="provinceGrid"></div>
+
+  <div id="provinceDetail" class="province-detail" style="display:none">
+    <button class="province-detail-close" onclick="closeProvinceDetail()" aria-label="Close">✕</button>
+    <div class="province-detail-head">
+      <div class="eyebrow-line" id="pdEyebrow">Province</div>
+      <h2 id="pdName">—</h2>
+      <p class="sub" id="pdTagline"></p>
+    </div>
+    <div class="province-detail-body">
+      <div class="pd-heritage">
+        <h3>Heritage &amp; highlights</h3>
+        <p id="pdHeritage"></p>
+        <div class="pd-tags" id="pdTags"></div>
+      </div>
+      <div class="pd-listings">
+        <h3>Live businesses in <span id="pdNameInline">this province</span></h3>
+        <div class="grid" id="pdListingsGrid"></div>
+      </div>
+    </div>
+    <div class="pd-map-wrap">
+      <h3>Map</h3>
+      <div id="pdMap" class="pd-map"></div>
+      <p class="pd-map-note">Pins mark live, approved businesses that included a location. Businesses without coordinates still appear in the list above.</p>
+    </div>
+  </div>
 </section>
+
 
 <!-- ===================== STORIES ===================== -->
 <section class="section" id="stories">
@@ -588,17 +798,41 @@
     <h2>Stories Hub</h2>
     <p class="sub">Real travel stories from real explorers.</p>
   </div>
-  <div class="grid">
-    <div class="card">
-      <h3>Safari Adventure in South Luangwa</h3>
-      <p style="color:var(--ink-soft);font-size:13.5px">A dawn walking safari through one of Africa's last great wildernesses.</p>
-      <p style="font-size:12px;color:var(--terracotta-dark);font-weight:700">Like · Comment · Reply · Share · Bookmark</p>
+
+  <div class="form-card story-new">
+    <div class="field">
+      <label for="storyTitle">Story title</label>
+      <input id="storyTitle" placeholder="e.g. Sunrise walk in South Luangwa">
     </div>
-    <div class="card">
-      <h3>Categories</h3>
-      <p style="font-size:13px;color:var(--ink-soft)">Safari · Culture · Adventure · Family Travel · Business Travel</p>
+    <div class="field">
+      <label for="storyCategory">Category</label>
+      <select id="storyCategory">
+        <option>Safari</option>
+        <option>Culture</option>
+        <option>Adventure</option>
+        <option>Family Travel</option>
+        <option>Business Travel</option>
+      </select>
     </div>
+    <div class="field">
+      <label for="storyBody">Your story</label>
+      <textarea id="storyBody" rows="3" placeholder="Tell other travellers what happened..."></textarea>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="submitStory()">Post Story</button>
   </div>
+
+  <div class="filters-bar">
+    <select id="storyCategoryFilter">
+      <option value="">All categories</option>
+      <option>Safari</option>
+      <option>Culture</option>
+      <option>Adventure</option>
+      <option>Family Travel</option>
+      <option>Business Travel</option>
+    </select>
+  </div>
+
+  <div class="grid" id="storiesGrid"></div>
 </section>
 
 <!-- ===================== BUSINESS DIRECTORY (deep build) ===================== -->
@@ -644,6 +878,30 @@
         <label for="bizDesc">Short description</label>
         <textarea id="bizDesc" rows="3" placeholder="What do you offer travellers?"></textarea>
       </div>
+      <div class="field">
+        <label for="bizPhone">Contact phone / WhatsApp</label>
+        <input id="bizPhone" placeholder="e.g. +260 977 000 000">
+      </div>
+      <div class="field">
+        <label for="bizAddressSearch">Search your address <small>(easiest way to get coordinates)</small></label>
+        <div class="address-search-row">
+          <input id="bizAddressSearch" placeholder="e.g. Cairo Road, Lusaka or Kafue Road, Livingstone" onkeydown="if(event.key==='Enter'){event.preventDefault();searchBizAddress();}">
+          <button type="button" class="btn btn-outline btn-sm" id="bizAddressSearchBtn" onclick="searchBizAddress()">🔍 Find on Map</button>
+        </div>
+        <div id="bizAddressResults" class="address-results" style="display:none"></div>
+        <div id="bizAddressConfirmed" class="address-confirmed" style="display:none"></div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="bizLat">Latitude <small>(optional — for map pin)</small></label>
+          <input id="bizLat" placeholder="e.g. -17.8419" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="bizLng">Longitude <small>(optional)</small></label>
+          <input id="bizLng" placeholder="e.g. 25.8543" inputmode="decimal">
+        </div>
+      </div>
+      <p class="field-hint">Search your address above and pick the right match — it fills in the coordinates for you. Prefer to do it manually? Open Google Maps, long-press your location, and copy the two numbers into the fields above. Either way is optional; without it you'll still appear in the listings, just not as a map pin.</p>
       <div class="field">
         <label>Choose a subscription tier</label>
         <div class="tier-grid" id="ownerTierGrid" style="margin-top:8px"></div>
@@ -694,11 +952,13 @@
     <h2>Events Centre</h2>
     <p class="sub">What's happening across Zambia this season.</p>
   </div>
-  <div class="grid">
-    <div class="card"><h3>Cultural Ceremonies</h3><p style="font-size:13px;color:var(--ink-soft)">Kuomboka, Likumbi Lya Mize and more.</p></div>
-    <div class="card"><h3>Tourism Expos</h3><p style="font-size:13px;color:var(--ink-soft)">Trade shows and travel fairs.</p></div>
-    <div class="card"><h3>Community Events</h3><p style="font-size:13px;color:var(--ink-soft)">Local gatherings and markets.</p></div>
-    <div class="card"><h3>Adventure Events</h3><p style="font-size:13px;color:var(--ink-soft)">Marathons, rafting and rallies.</p></div>
+  <div class="grid" id="eventsGrid"></div>
+  <div id="eventDetail" class="event-detail" style="display:none">
+    <button class="detail-close" onclick="closeEventDetail()" aria-label="Close">✕</button>
+    <div class="eyebrow-line" id="evEyebrow">Event</div>
+    <h2 id="evName">—</h2>
+    <p class="sub" id="evWhen"></p>
+    <p id="evBody" style="font-size:14px;line-height:1.7;color:var(--ink-soft)"></p>
   </div>
 </section>
 
@@ -709,12 +969,12 @@
     <h2>Knowledge Hub</h2>
     <p class="sub">Everything a traveller needs before they arrive.</p>
   </div>
-  <div class="grid">
-    <div class="card">Travel Tips</div>
-    <div class="card">Safety Information</div>
-    <div class="card">Wildlife Rules</div>
-    <div class="card">Cultural Etiquette</div>
-    <div class="card">Visa Information</div>
+  <div class="grid" id="knowledgeGrid"></div>
+  <div id="knowledgeDetail" class="know-detail" style="display:none">
+    <button class="detail-close" onclick="closeKnowledgeDetail()" aria-label="Close">✕</button>
+    <div class="eyebrow-line" id="kdEyebrow">Resource</div>
+    <h2 id="kdName">—</h2>
+    <ul id="kdList"></ul>
   </div>
 </section>
 
@@ -724,13 +984,69 @@
     <div class="eyebrow-line">Platform</div>
     <h2>Settings Centre</h2>
   </div>
-  <div class="card" style="max-width:520px">
-    <h3>Subscription Pricing</h3>
-    <div class="tier-grid" id="settingsTierGrid" style="margin-top:14px"></div>
-    <p style="margin-top:18px;font-size:13px;color:var(--ink-soft)"><b>Primary currency:</b> ZMW (Kwacha) · <b>Also accepted:</b> USD, GBP, EUR, ZAR</p>
-    <p style="font-size:13px;color:var(--ink-soft)"><b>Support:</b> +260 977 638 790 · skumbeni@gmail.com</p>
+
+  <div class="settings-tabs">
+    <button class="settings-tab active" data-tab="pricing" onclick="setSettingsTab('pricing')">Subscription Pricing</button>
+    <button class="settings-tab" data-tab="reservations" onclick="setSettingsTab('reservations')">Reservations &amp; Bookings</button>
+  </div>
+
+  <div id="settingsTab-pricing" class="settings-tab-panel">
+    <div class="card" style="max-width:520px">
+      <h3>Subscription Pricing</h3>
+      <div class="tier-grid" id="settingsTierGrid" style="margin-top:14px"></div>
+      <p style="margin-top:18px;font-size:13px;color:var(--ink-soft)"><b>Primary currency:</b> ZMW (Kwacha) · <b>Also accepted:</b> USD, GBP, EUR, ZAR</p>
+      <p style="font-size:13px;color:var(--ink-soft)"><b>Support:</b> +260 977 638 790 · skumbeni@gmail.com</p>
+    </div>
+  </div>
+
+  <div id="settingsTab-reservations" class="settings-tab-panel" style="display:none">
+    <div class="card" style="max-width:640px;margin-bottom:24px">
+      <h3>How reservations work</h3>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.7">
+        When a visitor taps <b>Request to Book</b> on a live listing, their details and dates are sent here as a reservation request — not a paid, confirmed booking. The business owner (or an admin on their behalf) then contacts the visitor directly to confirm availability and take payment. This keeps the platform simple and avoids holding anyone's money while the directory is young; a payment-collecting upgrade is a natural next step once you're ready for it.
+      </p>
+    </div>
+    <div class="queue-toolbar">
+      <h3 style="font-family:var(--serif);font-size:19px;margin:0">Incoming Reservation Requests</h3>
+      <span class="badge pending" id="reservationCount">0 pending</span>
+    </div>
+    <div class="grid" id="reservationsGrid"></div>
   </div>
 </section>
+
+<!-- ===================== BOOKING MODAL ===================== -->
+<div id="bookingModalOverlay" class="modal-overlay" style="display:none" onclick="if(event.target===this) closeBookingModal()">
+  <div class="modal-box">
+    <button class="detail-close" onclick="closeBookingModal()" aria-label="Close">✕</button>
+    <div class="eyebrow-line">Reservation Request</div>
+    <h2 id="bmListingName">—</h2>
+    <p class="sub" id="bmListingMeta"></p>
+    <div class="field">
+      <label for="bmName">Your name</label>
+      <input id="bmName" placeholder="Full name">
+    </div>
+    <div class="field">
+      <label for="bmPhone">Phone / WhatsApp</label>
+      <input id="bmPhone" placeholder="e.g. +260 977 000 000">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="bmCheckIn">Check-in / date</label>
+        <input id="bmCheckIn" type="date">
+      </div>
+      <div class="field">
+        <label for="bmGuests">Guests</label>
+        <input id="bmGuests" type="number" min="1" value="1">
+      </div>
+    </div>
+    <div class="field">
+      <label for="bmNotes">Notes (optional)</label>
+      <textarea id="bmNotes" rows="2" placeholder="Anything the business should know"></textarea>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="submitBooking()">Send Reservation Request</button>
+  </div>
+</div>
+
 
 <!-- ===================== PWA ===================== -->
 <section class="section">
@@ -791,16 +1107,56 @@ async function initFirebase(){
 }
 
 const PROVINCES = [
-  {name:"Lusaka", note:"Capital region"},
-  {name:"Central", note:"Kabwe & farmlands"},
-  {name:"Copperbelt", note:"Mining heartland"},
-  {name:"Eastern", note:"South Luangwa gateway"},
-  {name:"Luapula", note:"Lakes & wetlands"},
-  {name:"Muchinga", note:"North Luangwa"},
-  {name:"Northern", note:"Lake Tanganyika"},
-  {name:"North-Western", note:"Source of the Zambezi"},
-  {name:"Southern", note:"Victoria Falls"},
-  {name:"Western", note:"Barotseland"}
+  {name:"Lusaka", note:"Capital region",
+   lat:-15.4067, lng:28.2871, capital:"Lusaka",
+   tagline:"Zambia's capital — museums, monuments and the gateway to every safari beyond.",
+   heritage:"Lusaka grew up around the railway and became the capital in 1935. Today it blends national history with everyday city life: the Lusaka National Museum traces the country's archaeology and the struggle for independence, the Freedom Statue commemorates that struggle in bronze, and Chilenje House preserves the home where Kenneth Kaunda lived before independence. Just outside the city, Lusaka National Park and the Munda Wanga Environmental Park offer an easy introduction to Zambian wildlife, including a resident population of white rhino.",
+   tags:["Lusaka National Museum","Freedom Statue","Chilenje House","Munda Wanga"]},
+  {name:"Central", note:"Kabwe & farmlands",
+   lat:-14.4469, lng:28.4464, capital:"Kabwe",
+   tagline:"Farmland, fossil history and the Lunsemfwa Wonder Gorge.",
+   heritage:"Central Province sits on Zambia's main north-south corridor and mixes commercial farmland with significant heritage sites. Kabwe's old Broken Hill Mine marks the spot where the famous 'Broken Hill Man' fossil skull was found, one of the most important early-human discoveries in Africa. The Lunsemfwa Wonder Gorge near Mkushi cuts a dramatic gash through the escarpment, and Kundalila Falls, a protected national heritage site near Serenje, draws hikers to its cascading pools.",
+   tags:["Broken Hill Mine","Lunsemfwa Gorge","Kundalila Falls","Chimfunshi Sanctuary"]},
+  {name:"Copperbelt", note:"Mining heartland",
+   lat:-12.9587, lng:28.6366, capital:"Ndola",
+   tagline:"The industrial soul of Zambia, built on a century of copper.",
+   heritage:"The Copperbelt is Zambia's industrial heartland, home to the Bemba and Lamba people and a mining legacy stretching back over a century to discoveries at Luanshya and Mufulira. Beyond the mines, the province holds the Dag Hammarskjöld Memorial near Ndola, marking the 1961 plane crash that killed the UN Secretary-General, alongside natural sites like the Chichele Mofu tree and Lake Kashiba. The Ukusefya Pa Ng'wena ceremony each year celebrates Bemba history and migration.",
+   tags:["Dag Hammarskjöld Memorial","Copper mining heritage","Lake Kashiba","Ukusefya Pa Ng'wena"]},
+  {name:"Eastern", note:"South Luangwa gateway",
+   lat:-13.6333, lng:32.65, capital:"Chipata",
+   tagline:"Walking-safari country, and home to two of Zambia's largest cultural ceremonies.",
+   heritage:"Eastern Province is the gateway to South Luangwa National Park, widely regarded as one of Africa's finest safari destinations and the birthplace of the walking safari, pioneered by conservationist Norman Carr. The province is also a cultural stronghold for the Chewa, Ngoni, Nsenga and Tumbuka peoples. The Chewa's Kulamba ceremony, the largest traditional gathering in Zambia, and the Ngoni's Nc'wala first-fruits ceremony both draw thousands of visitors from Zambia, Malawi and Mozambique each year.",
+   tags:["South Luangwa National Park","Kulamba Ceremony","Nc'wala Ceremony","Luangwa Valley"]},
+  {name:"Luapula", note:"Lakes & wetlands",
+   lat:-11.2, lng:28.8833, capital:"Mansa",
+   tagline:"Zambia's water province — Lake Mweru, Lake Bangweulu and a chain of waterfalls.",
+   heritage:"Luapula takes its name from the river that drains Lake Bangweulu into Lake Mweru, and the province holds close to 40% of Zambia's water bodies. Lumangwe Falls, often called a smaller Victoria Falls, anchors a string of cascades including Kabwelume, Mumbuluma and Ntumbachushi. The Lunda Kingdom of Mwata Kazembe once dominated the valley, and that history is celebrated each July in the Umutomboko ceremony, a re-enactment of historic Lunda migrations and victories held in Mwansabombwe.",
+   tags:["Lumangwe Falls","Lake Bangweulu","Umutomboko Ceremony","Samfya Beach"]},
+  {name:"Muchinga", note:"North Luangwa",
+   lat:-10.5333, lng:32.0833, capital:"Chinsali",
+   tagline:"Zambia's newest province — rugged escarpment country and the wild North Luangwa.",
+   heritage:"Carved out of Northern and Eastern Provinces in 2011, Muchinga is Zambia's newest province, spanning the rugged eastern escarpment of the Great Rift Valley. It holds North Luangwa National Park, one of the country's wildest and least-visited parks, the towering Kalambo Falls on the Tanzania border, and the Mafinga Hills, Zambia's highest peaks. Chinsali, the cultural hub of the province, is closely tied to Bemba heritage and to independence-era figures like Simon Mwansa Kapwepwe.",
+   tags:["North Luangwa National Park","Kalambo Falls","Mafinga Hills","Bemba heritage"]},
+  {name:"Northern", note:"Lake Tanganyika",
+   lat:-10.2167, lng:31.18, capital:"Kasama",
+   tagline:"Home to the world's second-deepest lake and some of Zambia's tallest waterfalls.",
+   heritage:"Northern Province is regarded as the heartland of the Bemba people and holds three of Zambia's great lakes within or bordering its territory: Tanganyika, Bangweulu and Mweru-wa-Ntipa. Mpulungu on Lake Tanganyika is Zambia's only port. The province is also rich in waterfalls — Kalambo, Chishimba and Lumangwe among them — and Kasama's Chilubula Mission, founded in 1895, is one of the oldest mission stations in the country.",
+   tags:["Lake Tanganyika","Kalambo Falls","Bemba heartland","Chilubula Mission"]},
+  {name:"North-Western", note:"Source of the Zambezi",
+   lat:-12.1833, lng:26.4, capital:"Solwezi",
+   tagline:"Remote, forested, and the true beginning of the river that gives Zambia its name.",
+   heritage:"Tucked into Zambia's far northwest corner near the Angola and DR Congo borders, this province holds the actual source of the Zambezi River — a small spring bubbling up in a protected forest near Mwinilunga, marked with a monument unveiled on independence in 1964. The region is home to the Lunda, Luvale and Kaonde peoples, with the Luvale's Likumbi Lya Mize ceremony, featuring the UNESCO-recognised Makishi masquerade, among Zambia's most visually striking cultural events.",
+   tags:["Source of the Zambezi","Likumbi Lya Mize","Makishi Masquerade","Solwezi"]},
+  {name:"Southern", note:"Victoria Falls",
+   lat:-17.8419, lng:25.8543, capital:"Livingstone",
+   tagline:"Home to one of the Seven Natural Wonders of the World.",
+   heritage:"Southern Province is anchored by Victoria Falls — Mosi-oa-Tunya, 'the smoke that thunders' — a UNESCO World Heritage Site and the world's largest sheet of falling water. The Zambian side, reached from the historic town of Livingstone, includes the Knife-Edge Bridge, the Boiling Pot, and Mosi-oa-Tunya National Park's resident white rhino population. Livingstone itself holds over 360 recorded cultural heritage sites, and the Livingstone Museum is Zambia's oldest and largest, tracing the region's history from the Stone Age through David Livingstone's 1855 arrival to independence.",
+   tags:["Victoria Falls","Livingstone Museum","Mosi-oa-Tunya National Park","Knife-Edge Bridge"]},
+  {name:"Western", note:"Barotseland",
+   lat:-15.25, lng:23.1333, capital:"Mongu",
+   tagline:"The historic Kingdom of Barotseland, and home to the spectacular Kuomboka ceremony.",
+   heritage:"Western Province is the historic Kingdom of Barotseland, home to the Lozi people under their king, the Litunga. The Barotse Floodplain, shaped by the seasonal flooding of the upper Zambezi, is the setting for the Kuomboka ceremony — one of Africa's most spectacular cultural events, in which the Litunga is paddled from his flood-season palace at Lealui to higher ground at Limulunga aboard the royal barge Nalikwanda, accompanied by drumming, singing and dancing. The Barotse Cultural Landscape has been on Zambia's UNESCO tentative list since 2009.",
+   tags:["Kuomboka Ceremony","Barotse Floodplain","Litunga & Lealui Palace","Liuwa Plain"]}
 ];
 
 const TIERS = [
@@ -885,11 +1241,534 @@ const provinceGrid = document.getElementById("provinceGrid");
 PROVINCES.forEach(p=>{
   const card = document.createElement("div");
   card.className = "card province-card";
+  card.tabIndex = 0;
+  card.setAttribute("role","button");
   card.innerHTML = `${p.name}<small>${p.note}</small>`;
+  card.addEventListener("click", ()=> openProvinceDetail(p.name));
+  card.addEventListener("keydown", (e)=>{ if(e.key==="Enter"||e.key===" ") openProvinceDetail(p.name); });
   provinceGrid.appendChild(card);
 });
 document.getElementById("bizProvince").innerHTML = PROVINCES.map(p=>`<option>${p.name}</option>`).join("");
 document.getElementById("filterProvince").innerHTML = `<option value="">All provinces</option>` + PROVINCES.map(p=>`<option>${p.name}</option>`).join("");
+
+/* ---------- heritage province dropdown ---------- */
+const heritageSelect = document.getElementById("heritageProvinceSelect");
+heritageSelect.innerHTML = `<option value="">Choose a province…</option>` + PROVINCES.map(p=>`<option>${p.name}</option>`).join("");
+heritageSelect.addEventListener("change", (e)=>{
+  if(e.target.value) openProvinceDetail(e.target.value);
+  else closeProvinceDetail();
+});
+
+function provinceByName(name){ return PROVINCES.find(p=>p.name===name); }
+
+window.openProvinceDetail = function(name, opts){
+  const p = provinceByName(name);
+  if(!p) return;
+  heritageSelect.value = name;
+  document.getElementById("pdEyebrow").textContent = "Province Spotlight";
+  document.getElementById("pdName").textContent = p.name;
+  document.getElementById("pdNameInline").textContent = p.name;
+  document.getElementById("pdTagline").textContent = p.tagline;
+  document.getElementById("pdHeritage").textContent = p.heritage;
+  document.getElementById("pdTags").innerHTML = p.tags.map(t=>`<span>${t}</span>`).join("");
+
+  const liveHere = allListings.filter(l=>l.status==="live" && l.province===name);
+  document.getElementById("pdListingsGrid").innerHTML = liveHere.length
+    ? liveHere.map(l=>listingCard(l,"public")).join("")
+    : `<div class="empty-state"><span class="glyph">🧭</span>No live business listings in ${name} yet. Be the first — submit one in the Business Directory.</div>`;
+
+  renderProvinceMap(name);
+
+  const panel = document.getElementById("provinceDetail");
+  panel.style.display = "block";
+  if(!opts || !opts.silent) panel.scrollIntoView({behavior:"smooth", block:"start"});
+};
+
+window.closeProvinceDetail = function(){
+  document.getElementById("provinceDetail").style.display = "none";
+  heritageSelect.value = "";
+  if(pdMapInstance){
+    pdMapInstance.remove();
+    pdMapInstance = null;
+  }
+};
+
+/* ============================================================
+   STORIES — local-storage backed community posts
+============================================================ */
+const STORIES_KEY = "ze_stories_v1";
+function loadStories(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(STORIES_KEY) || "null");
+    if(raw) return raw;
+  }catch(e){}
+  // seed content on first run so the hub isn't empty
+  return [
+    {id:"s_seed1", title:"Sunrise walk in South Luangwa", category:"Safari",
+     body:"A dawn walking safari through one of Africa's last great wildernesses — we tracked leopard prints along the riverbank before the heat set in.",
+     author:"Mwansa K.", createdAt: Date.now() - 86400000*3, likes:["seed_user"], comments:[{author:"Chileshe", text:"This is on my list! How many days did you spend in the park?"}]},
+    {id:"s_seed2", title:"Kuomboka from the riverbank", category:"Culture",
+     body:"Watching the Litunga's barge cross the flooded plains at Mongu was unforgettable — drums echoing for hours before he even came into view.",
+     author:"Bupe M.", createdAt: Date.now() - 86400000*9, likes:[], comments:[]}
+  ];
+}
+function saveStories(list){ localStorage.setItem(STORIES_KEY, JSON.stringify(list)); }
+let allStories = loadStories();
+let currentUserId = ownerId; // reuse the same anon id used for business listings, as a stand-in "visitor id"
+
+window.submitStory = function(){
+  const title = document.getElementById("storyTitle").value.trim();
+  const category = document.getElementById("storyCategory").value;
+  const body = document.getElementById("storyBody").value.trim();
+  if(!title || !body){ toast("Add a title and a story before posting.", true); return; }
+  allStories.unshift({
+    id: "s_" + Date.now(), title, category, body,
+    author: "You", createdAt: Date.now(), likes: [], comments: []
+  });
+  saveStories(allStories);
+  document.getElementById("storyTitle").value = "";
+  document.getElementById("storyBody").value = "";
+  toast("Story posted!");
+  renderStories();
+  refreshDashboardMetrics();
+};
+
+window.toggleLikeStory = function(id){
+  const s = allStories.find(x=>x.id===id);
+  if(!s) return;
+  const i = s.likes.indexOf(currentUserId);
+  if(i === -1) s.likes.push(currentUserId); else s.likes.splice(i,1);
+  saveStories(allStories);
+  renderStories();
+};
+
+window.toggleSaveStory = function(id){
+  const SAVED_KEY = "ze_saved_stories";
+  let saved = [];
+  try{ saved = JSON.parse(localStorage.getItem(SAVED_KEY) || "[]"); }catch(e){}
+  const i = saved.indexOf(id);
+  if(i === -1){ saved.push(id); toast("Saved to your places."); }
+  else { saved.splice(i,1); toast("Removed from saved places."); }
+  localStorage.setItem(SAVED_KEY, JSON.stringify(saved));
+  renderStories();
+  refreshDashboardMetrics();
+};
+function getSavedStoryIds(){
+  try{ return JSON.parse(localStorage.getItem("ze_saved_stories") || "[]"); }catch(e){ return []; }
+}
+
+window.toggleComments = function(id){
+  const box = document.getElementById("comments_" + id);
+  if(box) box.classList.toggle("open");
+};
+
+window.submitComment = function(event, id){
+  event.preventDefault();
+  const input = document.getElementById("commentInput_" + id);
+  const text = input.value.trim();
+  if(!text) return;
+  const s = allStories.find(x=>x.id===id);
+  s.comments.push({author:"You", text});
+  saveStories(allStories);
+  input.value = "";
+  renderStories();
+  return false;
+};
+
+window.shareStory = function(id){
+  const s = allStories.find(x=>x.id===id);
+  if(!s) return;
+  const shareText = `${s.title} — shared from Zambia Explorer`;
+  if(navigator.share){
+    navigator.share({title:s.title, text:shareText}).catch(()=>{});
+  } else if(navigator.clipboard){
+    navigator.clipboard.writeText(shareText).then(()=> toast("Story link copied to clipboard."));
+  } else {
+    toast("Sharing isn't supported in this browser.", true);
+  }
+};
+
+function timeAgo(ts){
+  const mins = Math.floor((Date.now()-ts)/60000);
+  if(mins < 60) return mins<=1 ? "just now" : `${mins}m ago`;
+  const hrs = Math.floor(mins/60);
+  if(hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs/24);
+  return days===1 ? "1 day ago" : `${days} days ago`;
+}
+
+function storyCardHTML(s){
+  const liked = s.likes.includes(currentUserId);
+  const savedIds = getSavedStoryIds();
+  const isSaved = savedIds.includes(s.id);
+  const commentsHTML = s.comments.map(c=>`<li><b>${c.author}:</b> ${c.text}</li>`).join("");
+  return `
+  <div class="card story-card">
+    <span class="badge" style="background:var(--gold);color:var(--charcoal);align-self:flex-start">${s.category}</span>
+    <h3>${s.title}</h3>
+    <div class="story-meta"><span class="author">${s.author}</span><span>·</span><span>${timeAgo(s.createdAt)}</span></div>
+    <p style="color:var(--ink-soft);font-size:13.5px">${s.body}</p>
+    <div class="story-actions">
+      <button class="${liked?'liked':''}" onclick="toggleLikeStory('${s.id}')">👍 Like (${s.likes.length})</button>
+      <button onclick="toggleComments('${s.id}')">💬 Comment (${s.comments.length})</button>
+      <button onclick="shareStory('${s.id}')">↗ Share</button>
+      <button class="${isSaved?'saved':''}" onclick="toggleSaveStory('${s.id}')">${isSaved?'★ Saved':'☆ Bookmark'}</button>
+    </div>
+    <div class="story-comments" id="comments_${s.id}">
+      <ul>${commentsHTML || '<li style="color:var(--ink-soft)">No comments yet — be the first to reply.</li>'}</ul>
+      <form onsubmit="return submitComment(event,'${s.id}')">
+        <input id="commentInput_${s.id}" placeholder="Write a reply...">
+        <button type="submit">Reply</button>
+      </form>
+    </div>
+  </div>`;
+}
+
+function renderStories(){
+  const filter = document.getElementById("storyCategoryFilter").value;
+  let list = allStories.slice();
+  if(filter) list = list.filter(s=>s.category===filter);
+  document.getElementById("storiesGrid").innerHTML = list.length
+    ? list.map(storyCardHTML).join("")
+    : `<div class="empty-state"><span class="glyph">📝</span>No stories in this category yet.</div>`;
+}
+document.getElementById("storyCategoryFilter").addEventListener("change", renderStories);
+
+/* ============================================================
+   EVENTS — real dated entries with detail view
+============================================================ */
+const EVENTS = [
+  {id:"ev1", name:"Kuomboka Ceremony", category:"Cultural Ceremony", when:"Late March – April 2027 (date set by the Litunga once flood levels are confirmed)",
+   body:"The Lozi king, the Litunga, is paddled from his flood-season palace at Lealui to higher ground at Limulunga aboard the royal barge Nalikwanda, accompanied by over a hundred paddlers, drumming and singing. Held in Mongu, Western Province, this is widely regarded as Zambia's most spectacular traditional ceremony."},
+  {id:"ev2", name:"Nc'wala Ceremony", category:"Cultural Ceremony", when:"24 February (annual, Chipata District)",
+   body:"The Ngoni people's first-fruits ceremony, celebrating the harvest with traditional dress, dance and the tasting of the season's crops by the chief before the wider community partakes."},
+  {id:"ev3", name:"Kulamba Ceremony", category:"Cultural Ceremony", when:"Last Saturday of August (annual, Katete District)",
+   body:"The largest traditional gathering in Zambia. The Chewa people of Zambia, Malawi and Mozambique converge on Katete to pay homage to the Kalonga Gawa Undi, featuring the Gule Wamkulu masked dancers recognised by UNESCO as intangible cultural heritage."},
+  {id:"ev4", name:"Umutomboko Ceremony", category:"Cultural Ceremony", when:"Last weekend of July (annual, Mwansabombwe, Luapula Province)",
+   body:"The Lunda people re-enact their historic migration and conquest under Mwata Kazembe, with traditional dance, drumming and colourful royal regalia."},
+  {id:"ev5", name:"Zambia International Trade Fair", category:"Tourism Expo", when:"June/July (annual, Ndola)",
+   body:"One of Southern Africa's longest-running trade fairs, bringing together exhibitors from across the region — a good opportunity for tourism operators to showcase services to a national audience."},
+  {id:"ev6", name:"Lusaka July Tourism Conference", category:"Tourism Expo", when:"July (annual, Lusaka)",
+   body:"An industry gathering for lodges, tour operators and government tourism bodies to coordinate marketing for the upcoming high season."},
+  {id:"ev7", name:"Mansa Market Days", category:"Community Event", when:"Every weekend, Mansa town centre",
+   body:"Local produce, crafts and fresh fish from Lake Bangweulu and the Luapula River, sold directly by farmers and fishing communities."},
+  {id:"ev8", name:"Lusaka Showgrounds Agricultural Show", category:"Community Event", when:"Early August (annual, Lusaka)",
+   body:"A long-running agricultural and trade show with exhibitions, entertainment and food stalls, drawing visitors from across the country."},
+  {id:"ev9", name:"Victoria Falls Marathon", category:"Adventure Event", when:"Late June (annual, Livingstone)",
+   body:"A scenic road race that takes runners past the Victoria Falls Bridge and through Mosi-oa-Tunya National Park, with routes ranging from 5km to full marathon distance."},
+  {id:"ev10", name:"Zambezi White-Water Rafting Season", category:"Adventure Event", when:"August – January (low-water season, Livingstone)",
+   body:"The Zambezi's grade 4-5 rapids below Victoria Falls are at their most exciting during low water, drawing rafters from around the world."}
+];
+
+function eventCardHTML(e){
+  return `<div class="card event-card" onclick="openEventDetail('${e.id}')">
+    <span class="event-date-badge">${e.category}</span>
+    <h3>${e.name}</h3>
+    <p style="font-size:13px;color:var(--ink-soft)">${e.when}</p>
+  </div>`;
+}
+document.getElementById("eventsGrid").innerHTML = EVENTS.map(eventCardHTML).join("");
+
+window.openEventDetail = function(id){
+  const e = EVENTS.find(x=>x.id===id);
+  if(!e) return;
+  document.getElementById("evEyebrow").textContent = e.category;
+  document.getElementById("evName").textContent = e.name;
+  document.getElementById("evWhen").textContent = e.when;
+  document.getElementById("evBody").textContent = e.body;
+  const panel = document.getElementById("eventDetail");
+  panel.style.display = "block";
+  panel.scrollIntoView({behavior:"smooth", block:"start"});
+};
+window.closeEventDetail = function(){
+  document.getElementById("eventDetail").style.display = "none";
+};
+
+/* ============================================================
+   KNOWLEDGE HUB — real travel info, click to expand
+============================================================ */
+const KNOWLEDGE = [
+  {id:"k1", glyph:"🧭", name:"Travel Tips",
+   items:["Domestic flights connect Lusaka to Livingstone, Mfuwe (South Luangwa) and the Copperbelt — book ahead in peak season (June–October)",
+          "The Great East and Great North Roads are tarred and well-maintained; rural roads can require 4x4, especially in the rainy season (Nov–April)",
+          "ZMW (Kwacha) is the local currency; USD is widely accepted at lodges and tour operators but small vendors expect Kwacha",
+          "Mobile money (Airtel Money, MTN MoMo) is the most common way to pay locally — more reliable than cards outside major cities"]},
+  {id:"k2", glyph:"🛟", name:"Safety Information",
+   items:["Zambia is generally safe for travellers; petty theft is the main risk in busy markets and bus stations — keep valuables secure",
+          "Malaria is present countrywide; antimalarial prophylaxis and mosquito repellent are strongly recommended, especially near rivers and wetlands",
+          "Tap water in major cities is generally treated, but bottled or filtered water is recommended in rural areas and national parks",
+          "Always use a registered tour operator or lodge for activities involving wildlife, water, or remote areas"]},
+  {id:"k3", glyph:"🐘", name:"Wildlife Rules",
+   items:["Never approach or feed wild animals, even in seemingly calm settings — hippos and elephants cause more human fatalities in Zambia than any predator",
+          "Walking safaris are only permitted with a licensed, armed guide — never walk alone in game management areas or national parks",
+          "Keep a safe distance during game drives and follow your guide's instructions on vehicle noise and movement",
+          "Photography is welcome almost everywhere, but drones require prior permission inside national parks"]},
+  {id:"k4", glyph:"🤝", name:"Cultural Etiquette",
+   items:["Greetings matter — a handshake and a verbal greeting before getting to business is expected and appreciated",
+          "Dress modestly when visiting rural villages, chiefs' palaces, or attending traditional ceremonies",
+          "Ask before photographing people, especially at ceremonies like Kuomboka or Kulamba — some moments are considered sacred",
+          "Address chiefs and traditional leaders with their proper titles; your guide can advise on the right protocol for a specific area"]},
+  {id:"k5", glyph:"🛂", name:"Visa Information",
+   items:["Most visitors need a visa, available on arrival at major airports and land borders for many nationalities, or in advance online via the Zambian e-visa portal",
+          "The KAZA Univisa (covering both Zambia and Zimbabwe) is available for travellers planning to see Victoria Falls from both sides",
+          "Check current requirements before travel, as visa-exempt and e-visa-eligible country lists are updated periodically",
+          "Keep proof of yellow fever vaccination if arriving from a country with risk of transmission, as this is sometimes checked at entry"]}
+];
+
+function knowCardHTML(k){
+  return `<div class="card know-card" onclick="openKnowledgeDetail('${k.id}')">
+    <span class="glyph">${k.glyph}</span>
+    <h3>${k.name}</h3>
+  </div>`;
+}
+document.getElementById("knowledgeGrid").innerHTML = KNOWLEDGE.map(knowCardHTML).join("");
+
+window.openKnowledgeDetail = function(id){
+  const k = KNOWLEDGE.find(x=>x.id===id);
+  if(!k) return;
+  document.getElementById("kdEyebrow").textContent = "Resource";
+  document.getElementById("kdName").textContent = k.glyph + " " + k.name;
+  document.getElementById("kdList").innerHTML = k.items.map(i=>`<li>${i}</li>`).join("");
+  const panel = document.getElementById("knowledgeDetail");
+  panel.style.display = "block";
+  panel.scrollIntoView({behavior:"smooth", block:"start"});
+};
+window.closeKnowledgeDetail = function(){
+  document.getElementById("knowledgeDetail").style.display = "none";
+};
+
+/* ============================================================
+   SETTINGS TABS
+============================================================ */
+window.setSettingsTab = function(tab){
+  document.querySelectorAll(".settings-tab").forEach(b=>{
+    b.classList.toggle("active", b.dataset.tab === tab);
+  });
+  document.getElementById("settingsTab-pricing").style.display = tab === "pricing" ? "block" : "none";
+  document.getElementById("settingsTab-reservations").style.display = tab === "reservations" ? "block" : "none";
+  if(tab === "reservations") renderReservations();
+};
+
+/* ============================================================
+   RESERVATIONS / BOOKING REQUESTS — local-storage backed
+============================================================ */
+const RESERVATIONS_KEY = "ze_reservations_v1";
+function loadReservations(){
+  try{ return JSON.parse(localStorage.getItem(RESERVATIONS_KEY) || "[]"); }catch(e){ return []; }
+}
+function saveReservations(list){ localStorage.setItem(RESERVATIONS_KEY, JSON.stringify(list)); }
+let allReservations = loadReservations();
+let bookingTargetListingId = null;
+
+window.openBookingModal = function(listingId){
+  const listing = allListings.find(l=>l.id===listingId);
+  if(!listing) return;
+  bookingTargetListingId = listingId;
+  document.getElementById("bmListingName").textContent = listing.name;
+  document.getElementById("bmListingMeta").textContent = `${listing.category} · ${listing.province}`;
+  document.getElementById("bmName").value = "";
+  document.getElementById("bmPhone").value = "";
+  document.getElementById("bmCheckIn").value = "";
+  document.getElementById("bmGuests").value = "1";
+  document.getElementById("bmNotes").value = "";
+  document.getElementById("bookingModalOverlay").style.display = "flex";
+};
+window.closeBookingModal = function(){
+  document.getElementById("bookingModalOverlay").style.display = "none";
+  bookingTargetListingId = null;
+};
+
+window.submitBooking = function(){
+  const name = document.getElementById("bmName").value.trim();
+  const phone = document.getElementById("bmPhone").value.trim();
+  const checkIn = document.getElementById("bmCheckIn").value;
+  const guests = document.getElementById("bmGuests").value;
+  const notes = document.getElementById("bmNotes").value.trim();
+
+  if(!name || !phone){
+    toast("Please add your name and a phone/WhatsApp number so the business can reach you.", true);
+    return;
+  }
+  const listing = allListings.find(l=>l.id===bookingTargetListingId);
+  if(!listing) return;
+
+  allReservations.unshift({
+    id: "res_" + Date.now(),
+    listingId: listing.id,
+    listingName: listing.name,
+    listingOwnerId: listing.ownerId,
+    visitorName: name, visitorPhone: phone,
+    checkIn: checkIn || null, guests: guests || 1, notes,
+    status: "new", // new | contacted | confirmed | declined
+    createdAt: Date.now()
+  });
+  saveReservations(allReservations);
+  closeBookingModal();
+  toast(`Reservation request sent to ${listing.name}! They'll contact you directly to confirm.`);
+  renderReservations();
+};
+
+function reservationCardHTML(r){
+  const dateLabel = r.checkIn ? new Date(r.checkIn).toLocaleDateString() : "No specific date given";
+  const statusColor = {new:"pending", contacted:"live", confirmed:"live", declined:"rejected"}[r.status] || "pending";
+  return `
+  <div class="card reservation-card">
+    <span class="badge ${statusColor}" style="align-self:flex-start;margin-bottom:8px">${r.status}</span>
+    <h3>${r.listingName}</h3>
+    <div class="res-row"><span>Requested by</span><b>${r.visitorName}</b></div>
+    <div class="res-row"><span>Contact</span><b>${r.visitorPhone}</b></div>
+    <div class="res-row"><span>Date</span><b>${dateLabel}</b></div>
+    <div class="res-row"><span>Guests</span><b>${r.guests}</b></div>
+    ${r.notes ? `<p style="margin-top:8px;color:var(--ink-soft);font-size:12.5px">"${r.notes}"</p>` : ""}
+    <div class="reservation-actions">
+      ${r.status==="new" ? `<button class="btn btn-gold btn-sm" onclick="updateReservationStatus('${r.id}','contacted')">Mark Contacted</button>` : ""}
+      ${r.status!=="confirmed" && r.status!=="declined" ? `<button class="btn btn-outline btn-sm" onclick="updateReservationStatus('${r.id}','confirmed')">Confirm</button>` : ""}
+      ${r.status!=="declined" && r.status!=="confirmed" ? `<button class="btn btn-danger btn-sm" onclick="updateReservationStatus('${r.id}','declined')">Decline</button>` : ""}
+    </div>
+  </div>`;
+}
+
+window.updateReservationStatus = function(id, status){
+  const r = allReservations.find(x=>x.id===id);
+  if(!r) return;
+  r.status = status;
+  saveReservations(allReservations);
+  renderReservations();
+  toast(`Reservation marked as ${status}.`);
+};
+
+function renderReservations(){
+  // Admin sees everything; an owner (non-admin) would only see requests for their own listings —
+  // since this app's "owner" role is anonymous per-browser, we show all requests here for simplicity
+  // and rely on the admin passcode gate already protecting this Settings tab area in practice.
+  const pending = allReservations.filter(r=>r.status==="new");
+  document.getElementById("reservationCount").textContent = `${pending.length} pending`;
+  document.getElementById("reservationsGrid").innerHTML = allReservations.length
+    ? allReservations.map(reservationCardHTML).join("")
+    : `<div class="empty-state"><span class="glyph">📅</span>No reservation requests yet. They'll appear here as soon as a visitor taps "Request to Book" on a live listing.</div>`;
+}
+
+/* ============================================================
+   PROVINCE MAP — Leaflet + OpenStreetMap (free, no API key)
+============================================================ */
+let pdMapInstance = null;
+function renderProvinceMap(provinceName){
+  const p = provinceByName(provinceName);
+  if(!p || typeof L === "undefined") return;
+
+  const mapEl = document.getElementById("pdMap");
+  // Leaflet can't reuse a container that's already initialized — destroy first if present
+  if(pdMapInstance){
+    pdMapInstance.remove();
+    pdMapInstance = null;
+  }
+  mapEl.innerHTML = "";
+
+  pdMapInstance = L.map("pdMap", { scrollWheelZoom: false }).setView([p.lat, p.lng], 7);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(pdMapInstance);
+
+  // capital marker
+  L.marker([p.lat, p.lng], {opacity:0.85})
+    .addTo(pdMapInstance)
+    .bindPopup(`<b>${p.capital}</b><span class="pop-cat">Provincial capital</span>`);
+
+  // listing markers
+  const liveHere = allListings.filter(l=>l.status==="live" && l.province===provinceName && l.lat != null && l.lng != null);
+  const bounds = [[p.lat, p.lng]];
+  liveHere.forEach(l=>{
+    const marker = L.marker([l.lat, l.lng]).addTo(pdMapInstance);
+    const popupId = "pop_" + l.id;
+    marker.bindPopup(
+      `<b>${l.name}</b><span class="pop-cat">${l.category}</span>${l.phone ? l.phone + "<br>" : ""}<button onclick="openBookingModal('${l.id}')">Request to Book</button>`
+    );
+    bounds.push([l.lat, l.lng]);
+  });
+
+  if(bounds.length > 1){
+    pdMapInstance.fitBounds(bounds, {padding:[30,30]});
+  }
+  // Leaflet sometimes mis-measures a freshly-revealed container — nudge it after layout settles
+  setTimeout(()=> pdMapInstance && pdMapInstance.invalidateSize(), 250);
+}
+
+/* ============================================================
+   NATIONAL MAP — every live listing, all categories, all provinces
+============================================================ */
+const CATEGORY_COLORS = {
+  "Lodge / Accommodation": "#C75D3A",   // terracotta
+  "Tour Operator": "#2F6B4F",           // green-deep
+  "Transport": "#3A6EA5",               // blue
+  "Restaurant / Catering": "#C9A23B",   // gold
+  "Craft / Curio": "#8A5CB5",           // purple
+  "Guide Services": "#5C8A3A"           // olive
+};
+function categoryColor(cat){ return CATEGORY_COLORS[cat] || "#7A7A7A"; }
+
+function coloredPinIcon(color){
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:16px;height:16px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
+    iconSize: [16,16],
+    iconAnchor: [8,8]
+  });
+}
+
+let nationalMapInstance = null;
+function renderNationalMap(){
+  if(typeof L === "undefined") return;
+  const mapEl = document.getElementById("nationalMap");
+  if(!mapEl) return;
+
+  if(!nationalMapInstance){
+    nationalMapInstance = L.map("nationalMap", { scrollWheelZoom: false }).setView([-13.5, 27.8], 6);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(nationalMapInstance);
+    nationalMapInstance._markerLayer = L.layerGroup().addTo(nationalMapInstance);
+  } else {
+    nationalMapInstance._markerLayer.clearLayers();
+  }
+
+  const liveWithCoords = allListings.filter(l=>l.status==="live" && l.lat != null && l.lng != null);
+  const bounds = [];
+  liveWithCoords.forEach(l=>{
+    const marker = L.marker([l.lat, l.lng], { icon: coloredPinIcon(categoryColor(l.category)) });
+    marker.bindPopup(
+      `<b>${l.name}</b><span class="pop-cat">${l.category} · ${l.province}</span>${l.phone ? l.phone + "<br>" : ""}<button onclick="openBookingModal('${l.id}')">Request to Book</button>`
+    );
+    marker.addTo(nationalMapInstance._markerLayer);
+    bounds.push([l.lat, l.lng]);
+  });
+
+  if(bounds.length){
+    nationalMapInstance.fitBounds(bounds, {padding:[30,30], maxZoom:8});
+  } else {
+    nationalMapInstance.setView([-13.5, 27.8], 6);
+  }
+  setTimeout(()=> nationalMapInstance && nationalMapInstance.invalidateSize(), 250);
+
+  // legend — only show categories that actually have at least one live pinned listing
+  const usedCats = [...new Set(liveWithCoords.map(l=>l.category))];
+  document.getElementById("mapLegend").innerHTML = usedCats.length
+    ? usedCats.map(c=>`<span><i style="background:${categoryColor(c)}"></i>${c}</span>`).join("")
+    : `<span style="color:var(--ink-soft)">No pinned listings yet</span>`;
+}
+
+
+function refreshDashboardMetrics(){
+  document.getElementById("mSaved").textContent = getSavedStoryIds().length;
+  document.getElementById("mStories").textContent = allStories.length;
+  // mListings / mPending are already updated live inside renderAll()
+}
+
+renderStories();
+refreshDashboardMetrics();
+
+
 
 /* ---------- tier grids ---------- */
 function tierCardHTML(t, selectable){
@@ -913,15 +1792,112 @@ window.selectTier = function(id){
 };
 
 /* ---------- submit listing ---------- */
+/* ============================================================
+   ADDRESS SEARCH — Nominatim (OpenStreetMap) geocoding, free, no API key.
+   Usage policy: explicit search only (no live-as-you-type / autocomplete),
+   max 1 request/second, attribution shown on every result set.
+============================================================ */
+let lastGeocodeAt = 0;
+const GEOCODE_MIN_INTERVAL_MS = 1100; // stay safely under Nominatim's 1 req/sec limit
+
+window.searchBizAddress = async function(){
+  const query = document.getElementById("bizAddressSearch").value.trim();
+  const resultsBox = document.getElementById("bizAddressResults");
+  const btn = document.getElementById("bizAddressSearchBtn");
+
+  if(!query){
+    toast("Type an address or place name to search first.", true);
+    return;
+  }
+
+  const sinceLastCall = Date.now() - lastGeocodeAt;
+  if(sinceLastCall < GEOCODE_MIN_INTERVAL_MS){
+    await new Promise(r => setTimeout(r, GEOCODE_MIN_INTERVAL_MS - sinceLastCall));
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Searching…";
+  resultsBox.style.display = "block";
+  resultsBox.innerHTML = `<div class="address-results-loading">Searching OpenStreetMap…</div>`;
+
+  try{
+    lastGeocodeAt = Date.now();
+    // bias results toward Zambia without excluding genuine cross-border searches
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=zm&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, {
+      headers: { "Accept-Language": "en" }
+      // Nominatim's policy requires an identifying Referer or User-Agent. Browsers send a
+      // Referer header automatically on fetch() calls from a page — we don't need to (and
+      // can't, from client-side JS) set User-Agent ourselves.
+    });
+    if(!res.ok) throw new Error("Lookup failed (" + res.status + ")");
+    const data = await res.json();
+
+    if(!Array.isArray(data) || data.length === 0){
+      resultsBox.innerHTML = `<div class="address-results-empty">No matches found in Zambia for "${query}". Try a simpler search — e.g. just the town name.</div>`;
+      return;
+    }
+
+    resultsBox.innerHTML =
+      data.map((r,i)=>`
+        <div class="address-result-item" onclick="pickGeocodedAddress(${i})">
+          ${r.display_name}
+        </div>`).join("") +
+      `<div class="address-results-attribution">Search results &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>`;
+
+    window._geocodeResults = data; // stash for pickGeocodedAddress
+  } catch(e){
+    resultsBox.innerHTML = `<div class="address-results-error">Search failed — check your connection and try again.</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🔍 Find on Map";
+  }
+};
+
+window.pickGeocodedAddress = function(index){
+  const r = (window._geocodeResults || [])[index];
+  if(!r) return;
+  document.getElementById("bizLat").value = parseFloat(r.lat).toFixed(6);
+  document.getElementById("bizLng").value = parseFloat(r.lon).toFixed(6);
+  document.getElementById("bizAddressResults").style.display = "none";
+
+  const confirmBox = document.getElementById("bizAddressConfirmed");
+  confirmBox.style.display = "flex";
+  confirmBox.innerHTML = `📍 ${r.display_name} <button type="button" onclick="clearGeocodedAddress()">Change</button>`;
+  toast("Location found — coordinates filled in below.");
+};
+
+window.clearGeocodedAddress = function(){
+  document.getElementById("bizAddressConfirmed").style.display = "none";
+  document.getElementById("bizAddressSearch").value = "";
+  document.getElementById("bizLat").value = "";
+  document.getElementById("bizLng").value = "";
+};
+
 window.submitListing = async function(){
   const name = document.getElementById("bizName").value.trim();
   const category = document.getElementById("bizCategory").value;
   const province = document.getElementById("bizProvince").value;
   const description = document.getElementById("bizDesc").value.trim();
+  const phone = document.getElementById("bizPhone").value.trim();
+  const latRaw = document.getElementById("bizLat").value.trim();
+  const lngRaw = document.getElementById("bizLng").value.trim();
 
   if(!name || !description){
     toast("Please fill in business name and description.", true);
     return;
+  }
+
+  let lat = null, lng = null;
+  if(latRaw || lngRaw){
+    lat = parseFloat(latRaw);
+    lng = parseFloat(lngRaw);
+    const validRange = Number.isFinite(lat) && Number.isFinite(lng) &&
+      lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+    if(!validRange){
+      toast("Latitude/longitude look invalid — leave both blank if unsure, or double-check the numbers.", true);
+      return;
+    }
   }
 
   const tier = tierById(selectedTier);
@@ -929,7 +1905,8 @@ window.submitListing = async function(){
   const trialEndsAt = tier.trialDays ? now + tier.trialDays * 24 * 60 * 60 * 1000 : null;
 
   const listing = {
-    name, category, province, description,
+    name, category, province, description, phone,
+    lat, lng,
     tier: selectedTier,
     status: "pending",          // pending | live | rejected
     ownerId: ownerId,
@@ -951,6 +1928,11 @@ window.submitListing = async function(){
     toast("Submitted! Your listing is now pending admin review.");
     document.getElementById("bizName").value = "";
     document.getElementById("bizDesc").value = "";
+    document.getElementById("bizPhone").value = "";
+    document.getElementById("bizLat").value = "";
+    document.getElementById("bizLng").value = "";
+    window.clearGeocodedAddress();
+    document.getElementById("bizAddressResults").style.display = "none";
   }catch(e){
     console.error(e);
     toast("Could not submit listing. Check your connection.", true);
@@ -1047,6 +2029,10 @@ function listingCard(l, mode){
   const trialNote = mode === "owner" && l.trialEndsAtLocal
     ? `<p class="note">Free trial active until ${new Date(l.trialEndsAtLocal).toLocaleDateString()} — billing starts after that.</p>` : "";
 
+  const bookButton = l.status === "live"
+    ? `<button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="openBookingModal('${l.id}')">📅 Request to Book</button>`
+    : "";
+
   return `
   <div class="listing ${statusClass}">
     ${statusStamp(l.status)}
@@ -1056,6 +2042,7 @@ function listingCard(l, mode){
     <p style="font-size:13px;color:var(--ink-soft)">${l.description}</p>
     ${ownerNote}${ownerNoteRejected}${trialNote}
     ${actions}
+    ${bookButton}
   </div>`;
 }
 
@@ -1083,6 +2070,15 @@ function renderAll(){
 
   // public directory (filtered)
   renderPublicDirectory();
+
+  // national map — refresh pins whenever listing data changes
+  renderNationalMap();
+
+  // if a province detail panel is open, refresh its listings too (no scroll jump)
+  if(document.getElementById("provinceDetail").style.display === "block"){
+    const openName = heritageSelect.value;
+    if(openName) window.openProvinceDetail(openName, {silent:true});
+  }
 }
 
 function renderPublicDirectory(){
